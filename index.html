@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#090d18">
+<title>Block Blast</title>
+<style>
+:root{--bg:#090d18;--panel:#131b2d;--cell:#202b42;--line:#2b3a57;--cyan:#45d9ff;--text:#f4f7ff}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 50% 0,#172747 0,#090d18 55%);color:var(--text);font-family:system-ui,Arial,sans-serif;display:flex;justify-content:center;padding:18px 12px 30px;touch-action:pan-y}
+main{width:min(100%,520px)}header{text-align:center;margin:4px 0 16px}h1{font-size:clamp(30px,8vw,42px);margin:0;letter-spacing:2px;font-weight:900;background:linear-gradient(90deg,#54e4ff,#8c8cff);-webkit-background-clip:text;color:transparent}header p{margin:4px 0;color:#9fb0ce;font-size:13px;letter-spacing:2px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}.stat{background:#131b2deF;border:1px solid #283753;border-radius:14px;text-align:center;padding:9px 4px}.stat small{display:block;color:#9aabc8;font-size:11px;text-transform:uppercase;letter-spacing:1px}.stat strong{font-size:21px}
+.board-wrap{background:#10182a;border:1px solid #2a3a59;border-radius:16px;padding:9px;box-shadow:0 16px 40px #0008}.board{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;aspect-ratio:1}.cell{background:var(--cell);border:1px solid #2b3954;border-radius:5px;min-width:0;transition:background .12s,transform .12s}.cell.filled{background:var(--c,#4bd9ff);border-color:#ffffff55;box-shadow:inset 0 2px 5px #ffffff35,0 2px 5px #0005}.cell.hint{background:#57e7ff88;border-color:#c9f8ff;transform:scale(.94)}.cell.bad{background:#ff657788}
+.controls{display:flex;justify-content:space-between;align-items:center;margin:14px 2px 8px;color:#9eafcc;font-size:12px}.pieces{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;min-height:112px}.piece-slot{background:#121b2d;border:1px solid #293957;border-radius:14px;display:flex;align-items:center;justify-content:center;min-height:106px;padding:8px;touch-action:none}.piece-slot.used{opacity:.25}.piece{display:grid;gap:4px;touch-action:none;cursor:grab}.block{width:clamp(17px,4.4vw,23px);height:clamp(17px,4.4vw,23px);border-radius:5px;background:var(--pc);border:1px solid #ffffff55;box-shadow:inset 0 2px 4px #ffffff40}.piece.dragging{opacity:.35}
+.actions{display:flex;gap:9px;margin-top:14px}.btn{flex:1;border:0;border-radius:12px;padding:13px 10px;font-weight:800;color:#071321;background:linear-gradient(100deg,#51e2ff,#8a9cff);font-size:14px}.btn.secondary{background:#202c43;color:#e8efff;border:1px solid #344664}.tip{text-align:center;color:#8092b1;font-size:11px;margin-top:13px}
+#dragGhost{position:fixed;z-index:20;pointer-events:none;display:none;filter:drop-shadow(0 8px 12px #0008)}#dragGhost .block{width:clamp(20px,5vw,26px);height:clamp(20px,5vw,26px)}
+.overlay{position:fixed;inset:0;background:#050914d9;display:none;place-items:center;padding:20px;z-index:30}.dialog{background:#151f33;border:1px solid #3a4d70;border-radius:20px;padding:26px;text-align:center;width:min(100%,330px);box-shadow:0 20px 70px #000b}.dialog h2{margin:0 0 8px;font-size:28px}.dialog p{color:#aab9d3}
+@media(max-width:360px){.board{gap:3px}.board-wrap{padding:7px}.cell{border-radius:4px}.pieces{gap:5px}}
+</style>
+</head>
+<body>
+<main>
+<header><h1>BLOCK BLAST</h1><p>DRAG • DROP • CLEAR</p><p style="margin-top:8px;letter-spacing:1px;color:#c2d0e8">Created by Golethabo</p></header>
+<section class="stats"><div class="stat"><small>Score</small><strong id="score">0</strong></div><div class="stat"><small>Best</small><strong id="best">0</strong></div><div class="stat"><small>Lines</small><strong id="lines">0</strong></div></section>
+<div class="board-wrap"><div class="board" id="board" aria-label="10 by 10 game board"></div></div>
+<div class="controls"><span>Choose a block and drag it onto the board</span><span id="status">Your turn</span></div>
+<section class="pieces" id="pieces"></section>
+<div class="actions"><button class="btn secondary" id="soundBtn">Sound: ON</button><button class="btn" id="newBtn">New game</button></div>
+<div class="tip">Clear full rows or columns to score points.</div>
+</main>
+<div id="dragGhost"></div>
+<div class="overlay" id="overlay"><div class="dialog"><h2>Game over!</h2><p id="finalScore"></p><button class="btn" id="againBtn">Play again</button></div></div>
+<script>
+(()=>{
+const N=10, boardEl=document.getElementById('board'), piecesEl=document.getElementById('pieces');
+const scoreEl=document.getElementById('score'),bestEl=document.getElementById('best'),linesEl=document.getElementById('lines'),statusEl=document.getElementById('status');
+const ghost=document.getElementById('dragGhost'),overlay=document.getElementById('overlay');
+const shapes=[[[0,0]],[[0,0],[0,1]],[[0,0],[1,0]],[[0,0],[0,1],[0,2]],[[0,0],[1,0],[2,0]],[[0,0],[0,1],[1,0],[1,1]],[[0,0],[1,0],[1,1]],[[0,0],[0,1],[0,2],[1,1]],[[0,0],[1,0],[2,0],[2,1]],[[0,0],[0,1],[0,2],[1,0],[1,1],[1,2]],[[0,0],[1,0],[2,0],[3,0]],[[0,0],[0,1],[0,2],[0,3]],[[0,0],[1,0],[2,0],[3,0],[4,0]],[[0,0],[0,1],[0,2],[0,3],[0,4]],[[0,0],[1,0],[2,0],[1,1],[1,2]]];
+const colors=['#48d9ff','#7c91ff','#ffbd59','#ff6f91','#6ce5a2','#ba8cff'];
+let grid,score,lines,best=Number(localStorage.getItem('bb-best')||0),pieces=[],sound=true,drag=null;
+bestEl.textContent=best;
+function beep(freq=440,dur=.07){if(!sound)return;try{let c=new(window.AudioContext||window.webkitAudioContext)(),o=c.createOscillator(),g=c.createGain();o.frequency.value=freq;g.gain.value=.035;o.connect(g);g.connect(c.destination);o.start();g.gain.exponentialRampToValueAtTime(.001,c.currentTime+dur);o.stop(c.currentTime+dur)}catch(e){}}
+function newPiece(){let s=shapes[Math.floor(Math.random()*shapes.length)];return {cells:s.map(p=>[...p]),color:colors[Math.floor(Math.random()*colors.length)]}}
+function init(){grid=Array.from({length:N},()=>Array(N).fill(null));score=0;lines=0;pieces=[newPiece(),newPiece(),newPiece()];overlay.style.display='none';render();update()}
+function update(){scoreEl.textContent=score;linesEl.textContent=lines;bestEl.textContent=best}
+function render(){boardEl.innerHTML='';for(let r=0;r<N;r++)for(let c=0;c<N;c++){let el=document.createElement('div');el.className='cell'+(grid[r][c]?' filled':'');if(grid[r][c])el.style.setProperty('--c',grid[r][c]);el.dataset.r=r;el.dataset.c=c;boardEl.append(el)}
+piecesEl.innerHTML='';pieces.forEach((p,i)=>{let slot=document.createElement('div');slot.className='piece-slot'+(!p?' used':'');if(p){let maxR=Math.max(...p.cells.map(x=>x[0]))+1,maxC=Math.max(...p.cells.map(x=>x[1]))+1;let el=document.createElement('div');el.className='piece';el.style.gridTemplateColumns=`repeat(${maxC},auto)`;el.style.gridTemplateRows=`repeat(${maxR},auto)`;el.dataset.index=i;for(let r=0;r<maxR;r++)for(let c=0;c<maxC;c++){let b=document.createElement('div');b.className='block';if(p.cells.some(x=>x[0]===r&&x[1]===c))b.style.setProperty('--pc',p.color);else b.style.visibility='hidden';el.append(b)}slot.append(el)}piecesEl.append(slot)})}
+function canPlace(p,r,c){return p.cells.every(([y,x])=>r+y>=0&&r+y<N&&c+x>=0&&c+x<N&&!grid[r+y][c+x])}
+function preview(r,c){document.querySelectorAll('.cell').forEach(el=>el.classList.remove('hint','bad'));if(!drag)return;let good=canPlace(drag.p,r,c);drag.p.cells.forEach(([y,x])=>{let el=boardEl.children[(r+y)*N+c+x];if(el)el.classList.add(good?'hint':'bad')})}
+function clearLines(){let rows=[],cols=[];for(let r=0;r<N;r++)if(grid[r].every(Boolean))rows.push(r);for(let c=0;c<N;c++)if(grid.every(row=>row[c]))cols.push(c);if(rows.length||cols.length){let cleared=new Set();rows.forEach(r=>{for(let c=0;c<N;c++)cleared.add(r*N+c)});cols.forEach(c=>{for(let r=0;r<N;r++)cleared.add(r*N+c)});cleared.forEach(i=>{let el=boardEl.children[i];if(el){el.style.transform='scale(.3)';el.style.opacity='0'}});setTimeout(()=>{rows.forEach(r=>grid[r].fill(null));cols.forEach(c=>{for(let r=0;r<N;r++)grid[r][c]=null});render()},130);lines+=rows.length+cols.length;score+=(rows.length+cols.length)*10+Math.max(0,rows.length*cols.length)*5;beep(760,.15)}}
+function place(index,r,c){let p=pieces[index];if(!p||!canPlace(p,r,c))return false;p.cells.forEach(([y,x])=>grid[r+y][c+x]=p.color);score+=p.cells.length;pieces[index]=null;beep(520);clearLines();if(pieces.every(x=>!x))pieces=[newPiece(),newPiece(),newPiece()];render();update();if(score>best){best=score;localStorage.setItem('bb-best',best);bestEl.textContent=best}setTimeout(checkOver,180);return true}
+function checkOver(){if(pieces.every(p=>!p))return;let possible=pieces.some(p=>p&&grid.some((row,r)=>row.some((_,c)=>canPlace(p,r,c))));if(!possible){document.getElementById('finalScore').textContent=`Your score: ${score}`;overlay.style.display='grid';statusEl.textContent='Game over';beep(180,.25)}}
+function boardCellAt(x,y){let el=document.elementFromPoint(x,y);return el?.closest('.cell')}
+function startDrag(e){let piece=e.target.closest('.piece');if(!piece)return;let i=Number(piece.dataset.index),p=pieces[i];if(!p)return;e.preventDefault();drag={i,p,source:piece,pointer:e.pointerId};piece.classList.add('dragging');ghost.innerHTML=piece.outerHTML;ghost.style.display='block';moveGhost(e.clientX,e.clientY);try{piece.setPointerCapture(e.pointerId)}catch(_){}}
+function moveGhost(x,y){ghost.style.left=(x-35)+'px';ghost.style.top=(y-55)+'px';let cell=boardCellAt(x,y);if(cell)preview(Number(cell.dataset.r),Number(cell.dataset.c));else document.querySelectorAll('.cell').forEach(el=>el.classList.remove('hint','bad'))}
+function endDrag(e){if(!drag)return;let cell=boardCellAt(e.clientX,e.clientY),d=drag;drag=null;ghost.style.display='none';document.querySelectorAll('.cell').forEach(el=>el.classList.remove('hint','bad'));if(d.source.isConnected)d.source.classList.remove('dragging');if(cell){let ok=place(d.i,Number(cell.dataset.r),Number(cell.dataset.c));if(!ok)statusEl.textContent='That spot is blocked';else statusEl.textContent='Nice move!'}else statusEl.textContent='Your turn'}
+piecesEl.addEventListener('pointerdown',startDrag);window.addEventListener('pointermove',e=>{if(drag)moveGhost(e.clientX,e.clientY)});window.addEventListener('pointerup',endDrag);window.addEventListener('pointercancel',endDrag);
+document.getElementById('newBtn').onclick=init;document.getElementById('againBtn').onclick=init;document.getElementById('soundBtn').onclick=()=>{sound=!sound;document.getElementById('soundBtn').textContent='Sound: '+(sound?'ON':'OFF');if(sound)beep()};
+init();
+})();
+</script>
+</body></html>
