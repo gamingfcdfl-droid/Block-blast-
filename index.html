@@ -17,6 +17,13 @@ main{width:min(100%,520px)}header{text-align:center;margin:4px 0 16px}h1{font-si
 .overlay{position:fixed;inset:0;background:#050914d9;display:none;place-items:center;padding:20px;z-index:30}.dialog{background:#151f33;border:1px solid #3a4d70;border-radius:20px;padding:26px;text-align:center;width:min(100%,330px);box-shadow:0 20px 70px #000b}.dialog h2{margin:0 0 8px;font-size:28px}.dialog p{color:#aab9d3}
 @media(max-width:360px){.board{gap:3px}.board-wrap{padding:7px}.cell{border-radius:4px}.pieces{gap:5px}}
 </style>
+
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#090d18">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="BLOCK BLAST">
+<link rel="apple-touch-icon" href="./icons/icon-192.png">
 </head>
 <body>
 <main>
@@ -58,5 +65,13 @@ piecesEl.addEventListener('pointerdown',startDrag);window.addEventListener('poin
 document.getElementById('newBtn').onclick=init;document.getElementById('againBtn').onclick=init;document.getElementById('soundBtn').onclick=()=>{sound=!sound;document.getElementById('soundBtn').textContent='Sound: '+(sound?'ON':'OFF');if(sound)beep()};
 init();
 })();
+</script>
+
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./service-worker.js").catch(() => {});
+  });
+}
 </script>
 </body></html>
